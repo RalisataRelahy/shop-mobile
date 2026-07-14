@@ -54,6 +54,7 @@ class AuthController extends AsyncNotifier<void> {
           pseudo: pseudo,
           phone: phone,
         ));
+    state=await AsyncValue.guard(() => _authService.login(email, password));
   }
 
   Future<void> signOut() async {

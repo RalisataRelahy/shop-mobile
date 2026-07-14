@@ -5,104 +5,82 @@ import 'package:intl/intl.dart';
 import 'package:shop_good/app/theme/app_colors.dart';
 import 'package:shop_good/features/auth/providers/auth_provider.dart';
 
-class ProfileScreen extends ConsumerWidget {
-  const ProfileScreen({super.key});
+// Changement du nom pour refléter que c'est un Widget interne
+class ProfileWidget extends ConsumerWidget {
+  const ProfileWidget({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(userProfileProvider);
     final user = ref.watch(currentUserProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.backgroundOffWhite,
-      appBar: AppBar(
-        title: Text(
-          'Mon Profil',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w600,
-            color: Colors.black87,
+    // On retourne directement la gestion d'état sans Scaffold ni AppBar
+    return profileAsync.when(
+      data: (profile) {
+        if (profile == null) {
+          return const Center(child: Text('Profil non trouvé'));
+        }
+
+        // SingleChildScrollView est conservé pour éviter les bugs de débordement (Overflow)
+        return SingleChildScrollView(
+          padding: const EdgeInsets.only(top:20,bottom: 20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 16),
+              Text(
+                profile.pseudo,
+                style: GoogleFonts.poppins(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              Text(
+                user?.email ?? '',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: AppColors.mediumGrey,
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              // Info Cards
+              _buildInfoCard(
+                icon: Icons.phone_outlined,
+                title: 'Téléphone',
+                value: profile.phone,
+              ),
+              const SizedBox(height: 6),
+              _buildInfoCard(
+                icon: Icons.calendar_today_outlined,
+                title: 'Membre depuis',
+                value: DateFormat('d MMMM yyyy', 'fr_FR').format(profile.createdAt),
+              ),
+              const SizedBox(height: 40),
+
+              // Action Buttons
+              _buildActionButton(
+                icon: Icons.edit_outlined,
+                label: 'Modifier le profil',
+                onTap: () {},
+              ),
+              const SizedBox(height: 12),
+              _buildActionButton(
+                icon: Icons.logout_rounded,
+                label: 'Se déconnecter',
+                isDestructive: true,
+                onTap: () async {
+                  await ref.read(authControllerProvider.notifier).signOut();
+                },
+              ),
+            ],
           ),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: true,
-      ),
-      body: profileAsync.when(
-        data: (profile) {
-          if (profile == null) {
-            return const Center(child: Text('Profil non trouvé'));
-          }
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                // Avatar Section
-                const Center(
-                  child: CircleAvatar(
-                    radius: 50,
-                    backgroundColor: AppColors.primaryGreen,
-                    child: Icon(
-                      Icons.person,
-                      size: 60,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  profile.pseudo,
-                  style: GoogleFonts.poppins(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                Text(
-                  user?.email ?? '',
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    color: AppColors.mediumGrey,
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                // Info Cards
-                _buildInfoCard(
-                  icon: Icons.phone_outlined,
-                  title: 'Téléphone',
-                  value: profile.phone,
-                ),
-                const SizedBox(height: 12),
-                _buildInfoCard(
-                  icon: Icons.calendar_today_outlined,
-                  title: 'Membre depuis',
-                  value: DateFormat('d MMMM yyyy', 'fr_FR').format(profile.createdAt),
-                ),
-                const SizedBox(height: 40),
-
-                // Action Buttons
-                _buildActionButton(
-                  icon: Icons.edit_outlined,
-                  label: 'Modifier le profil',
-                  onTap: () {},
-                ),
-                const SizedBox(height: 12),
-                _buildActionButton(
-                  icon: Icons.logout_rounded,
-                  label: 'Se déconnecter',
-                  isDestructive: true,
-                  onTap: () async {
-                    await ref.read(authControllerProvider.notifier).signOut();
-                  },
-                ),
-              ],
-            ),
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Erreur: $err')),
-      ),
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, stack) => Center(child: Text('Erreur: $err')),
     );
   }
 

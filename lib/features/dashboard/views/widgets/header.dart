@@ -17,7 +17,7 @@ class Header extends StatelessWidget {
           SizedBox(height: 5),
           // logo Shop +
           Image.asset(
-            'images/shop_logo.png',
+            'assets/images/shop_logo.png',
             width: 100,
             height: 50,
           ),

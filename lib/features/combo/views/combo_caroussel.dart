@@ -13,6 +13,8 @@ class ComboCarrousel extends StatefulWidget {
 class _ComboCarrouselState extends State<ComboCarrousel> {
   late PageController _pageController;
   int _currentPage = 0;
+  double _currentFraction = 0.85;
+  bool _isSwappingController = false;
 
   final List<ComboModels> _combosMock = [
     ComboModels(
@@ -51,20 +53,57 @@ class _ComboCarrouselState extends State<ComboCarrousel> {
   double _getCardHeight(double width, double fraction) {
     final cardWidth = width * fraction;
     final imageHeight = cardWidth * (10 / 16);
-    const textZoneHeight = 100.0;
-    return imageHeight + textZoneHeight;
+    // Zone de texte adaptative : un peu plus grande sur cartes très étroites
+    // (texte qui a besoin de plus de lignes) et bornée pour rester raisonnable.
+    final textZoneHeight = (cardWidth < 220 ? 112.0 : 100.0);
+    final total = imageHeight + textZoneHeight;
+    return total.clamp(160.0, 320.0);
+  }
+
+  double _dotScale(double width) {
+    if (width >= 900) return 1.15;
+    if (width < 360) return 0.9;
+    return 1.0;
   }
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(viewportFraction: 0.85);
+    _pageController = PageController(viewportFraction: _currentFraction);
   }
 
   @override
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  /// Remplace le PageController de façon sûre : on attend la fin de la frame
+  /// en cours pour éviter de disposer un contrôleur pendant qu'il est utilisé
+  /// par le PageView actuellement affiché.
+  void _swapControllerIfNeeded(double newFraction) {
+    if ((newFraction - _currentFraction).abs() < 0.001 || _isSwappingController) {
+      return;
+    }
+    _isSwappingController = true;
+    final oldController = _pageController;
+    final keptPage = oldController.hasClients
+        ? (oldController.page?.round() ?? _currentPage)
+        : _currentPage;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() {
+        _currentFraction = newFraction;
+        _pageController = PageController(
+          viewportFraction: newFraction,
+          initialPage: keptPage,
+        );
+        _currentPage = keptPage;
+      });
+      oldController.dispose();
+      _isSwappingController = false;
+    });
   }
 
   @override
@@ -74,17 +113,11 @@ class _ComboCarrouselState extends State<ComboCarrousel> {
         final width = constraints.maxWidth;
         final fraction = _getViewportFraction(width);
         final cardHeight = _getCardHeight(width, fraction);
+        final dotScale = _dotScale(width);
 
-        if (_pageController.viewportFraction != fraction) {
-          final oldPage = _pageController.hasClients
-              ? (_pageController.page?.round() ?? _currentPage)
-              : _currentPage;
-          _pageController.dispose();
-          _pageController = PageController(
-            viewportFraction: fraction,
-            initialPage: oldPage,
-          );
-        }
+        // Planifie le remplacement du contrôleur après cette frame si la
+        // fraction cible a changé (rotation, redimensionnement de fenêtre...).
+        _swapControllerIfNeeded(fraction);
 
         return Column(
           children: [
@@ -119,14 +152,14 @@ class _ComboCarrouselState extends State<ComboCarrousel> {
                     (index) => AnimatedContainer(
                   duration: const Duration(milliseconds: 300),
                   curve: Curves.easeOut,
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  height: 8,
-                  width: _currentPage == index ? 24 : 8,
+                  margin: EdgeInsets.symmetric(horizontal: 4 * dotScale),
+                  height: 8 * dotScale,
+                  width: (_currentPage == index ? 24 : 8) * dotScale,
                   decoration: BoxDecoration(
                     color: _currentPage == index
                         ? AppColors.primaryGreen
                         : AppColors.lightGrey,
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(4 * dotScale),
                   ),
                 ),
               ),

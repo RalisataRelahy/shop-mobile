@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shop_good/features/cart/providers/cart_provider.dart';
 import 'package:shop_good/app/theme/app_colors.dart';
 
@@ -134,7 +135,8 @@ class CartBottomSheet extends ConsumerWidget {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         onPressed: () {
-                          Navigator.pop(context);
+                          Navigator.pop(context); // Fermer le panier
+                          context.push('/checkout');
                         },
                         child: const Text('Passer la commande', style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold)),
                       ),

@@ -5,14 +5,19 @@ import '../models/menu_models.dart';
 class MenuServices {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  // Récupère la liste complète des plats avec le nom de leur catégorie
   Future<List<MenuModels>> getAllMenu() async {
     try {
       final response = await _supabase
           .from('products')
-          .select('*, categories(name)');
+          .select('''
+          *,
+          categories(name),
+          product_variants(*)
+        ''');
 
-      return (response as List).map((json) => MenuModels.fromJson(json)).toList();
+      return (response as List)
+          .map((json) => MenuModels.fromJson(json))
+          .toList();
     } catch (e) {
       throw Exception('Erreur de lecture : $e');
     }

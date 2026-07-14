@@ -2,18 +2,59 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shop_good/features/cart/providers/cart_provider.dart';
+import 'package:shop_good/features/menu/data/models/menu_invariant_models.dart';
 import 'package:shop_good/features/menu/data/models/menu_models.dart';
+import 'package:shop_good/features/menu/views/widgets/show_pop_up_menu_items.dart';
 import 'package:shop_good/shared/widgets/toast_notification.dart';
 import 'package:shop_good/app/theme/app_colors.dart';
+import 'package:shop_good/utils/factorisingprice.dart';
 
-class MenuItemCard extends ConsumerWidget {
+class MenuItemCard extends ConsumerStatefulWidget {
   final MenuModels menu;
   final VoidCallback? onTap;
 
   const MenuItemCard({super.key, required this.menu, this.onTap});
 
   @override
-  Widget build(BuildContext context,WidgetRef ref) {
+  ConsumerState<MenuItemCard> createState() => _MenuItemCardState();
+}
+
+class _MenuItemCardState extends ConsumerState<MenuItemCard> {
+  MenuInvariantModels? selectedVariant;
+
+  @override
+  void initState() {
+    super.initState();
+    _initSelectedVariant();
+  }
+
+  void _initSelectedVariant() {
+    if (widget.menu.variants.isNotEmpty) {
+      selectedVariant = widget.menu.variants.first;
+    }
+  }
+
+  @override
+  void didUpdateWidget(MenuItemCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Si le menu a changé ou si les variantes ont été mises à jour
+    if (widget.menu.id != oldWidget.menu.id || widget.menu.variants != oldWidget.menu.variants) {
+      if (widget.menu.variants.isNotEmpty) {
+        // Tenter de retrouver la variante précédemment sélectionnée par son ID
+        final index = widget.menu.variants.indexWhere((v) => v.id == selectedVariant?.id);
+        if (index != -1) {
+          selectedVariant = widget.menu.variants[index];
+        } else {
+          selectedVariant = widget.menu.variants.first;
+        }
+      } else {
+        selectedVariant = null;
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final double width = constraints.maxWidth.isFinite
@@ -27,12 +68,35 @@ class MenuItemCard extends ConsumerWidget {
         final double titleSize = (14 * scale).clamp(12.0, 17.0);
         final double priceSize = (14 * scale).clamp(12.0, 17.0);
         final double addIconSize = (18 * scale).clamp(16.0, 22.0);
-        final double addButtonPadding = (1 * scale).clamp(2.0, 4.0);
-        final double favIconSize = (18 * scale).clamp(16.0, 22.0);
-        final double favPadding = (6 * scale).clamp(5.0, 9.0);
+        final double addButtonPadding = (1 * scale).clamp(1.0, 2.0);
+
+        // Déduplication par ID pour éviter le crash du DropdownButton si doublons en BDD
+        final Map<String, MenuInvariantModels> uniqueVariantsMap = {};
+        for (var v in widget.menu.variants) {
+          uniqueVariantsMap[v.id] = v;
+        }
+        final List<MenuInvariantModels> variants = uniqueVariantsMap.values.toList();
 
         return InkWell(
-          onTap: onTap,
+          onTap: widget.onTap ?? () {
+            showDialog(
+              context: context,
+              builder: (context) => ShowPopUpMenuItems(
+                menu: widget.menu,
+                onConfirmer: (variant) {
+                  final cartItem = MenuVariantCartItem(
+                    menu: widget.menu,
+                    variant: variant,
+                  );
+                  ref.read(cartProvider.notifier).addItem(cartItem);
+                  ToastNotification.showSuccess(
+                    context,
+                    '${widget.menu.name} (${variant.name}) ajouté au panier !'
+                  );
+                },
+              ),
+            );
+          },
           borderRadius: BorderRadius.circular(borderRadius),
           child: Container(
             decoration: BoxDecoration(
@@ -58,7 +122,7 @@ class MenuItemCard extends ConsumerWidget {
                           top: Radius.circular(borderRadius),
                         ),
                         child: Image.network(
-                          menu.imageUrl,
+                          widget.menu.imageUrl,
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) {
                             return Container(
@@ -72,22 +136,6 @@ class MenuItemCard extends ConsumerWidget {
                           },
                         ),
                       ),
-                      Positioned(
-                        top: 8 * scale,
-                        right: 8 * scale,
-                        child: Container(
-                          padding: EdgeInsets.all(favPadding),
-                          decoration: const BoxDecoration(
-                            color: AppColors.surfaceWhite,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.favorite_border,
-                            size: favIconSize,
-                            color: AppColors.mediumGrey,
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -99,7 +147,7 @@ class MenuItemCard extends ConsumerWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        menu.name,
+                        widget.menu.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.poppins(
@@ -107,45 +155,79 @@ class MenuItemCard extends ConsumerWidget {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      SizedBox(height: 8 * scale),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.local_offer_outlined,
-                            size: 14,
-                            color: AppColors.darkGrey,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            menu.category,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.darkGrey,
-                              fontWeight: FontWeight.w500,
-                              fontStyle: FontStyle.italic,
+                      const SizedBox(height: 4),
+                      
+                      // Dropdown for variants
+                      if (variants.length > 1)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Text(
+                              'Taille:',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12 * scale,
+                                color: AppColors.darkGrey,
+                              ),
                             ),
+                            const SizedBox(width: 4),
+                            Container(
+                              height: 35 * scale,
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              decoration: BoxDecoration(
+                                color: AppColors.lightGrey.withValues(alpha: 0.3),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<MenuInvariantModels>(
+                                  value: selectedVariant,
+                                  isDense: true,
+                                  icon: const Icon(Icons.arrow_drop_down, size: 18),
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 13 * scale,
+                                    color: AppColors.darkGrey,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  items: variants.map((variant) {
+                                    return DropdownMenuItem(
+                                      value: variant,
+                                      child: Text(variant.name),
+                                    );
+                                  }).toList(),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      selectedVariant = value;
+                                    });
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      else if (variants.isNotEmpty)
+                        Text(
+                          variants.first.name,
+                          style: GoogleFonts.poppins(
+                            fontSize: 11 * scale,
+                            color: AppColors.mediumGrey,
                           ),
-                        ],
-                      ),
+                        ),
+
+                      SizedBox(height: 8 * scale),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Flexible(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  "${menu.price} Ar",
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.poppins(
-                                    color: AppColors.primaryGreen,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: priceSize,
-                                  ),
-                                ),
-                              ],
+                            child: Text(
+                              selectedVariant != null
+                                  ? "${factorisingPrice(selectedVariant!.price.toInt())} Ar"
+                                  : "Prix indisponible",
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.poppins(
+                                color: AppColors.primaryGreen,
+                                fontWeight: FontWeight.bold,
+                                fontSize: priceSize,
+                              ),
                             ),
                           ),
 
@@ -158,15 +240,23 @@ class MenuItemCard extends ConsumerWidget {
                               shape: BoxShape.circle,
                             ),
                             child: IconButton(
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
                               onPressed: () {
-                                ref.read(cartProvider.notifier).addItem(menu);
-                                ToastNotification.showSuccess(
-                                    context,
-                                    '${menu.name} ajouté au panier !'
-                                );
+                                if (selectedVariant != null) {
+                                  final cartItem = MenuVariantCartItem(
+                                    menu: widget.menu,
+                                    variant: selectedVariant!,
+                                  );
+                                  ref.read(cartProvider.notifier).addItem(cartItem);
+                                  ToastNotification.showSuccess(
+                                      context,
+                                      '${widget.menu.name} (${selectedVariant!.name}) ajouté au panier !'
+                                  );
+                                }
                               },
                               icon: Icon(
-                                Icons.add,
+                                Icons.add_shopping_cart_outlined,
                                 color: AppColors.surfaceWhite,
                                 size: addIconSize,
                               )

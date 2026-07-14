@@ -33,7 +33,7 @@ class MenuList extends ConsumerWidget {
         }
 
         return ExpandableSection(
-          title: selectedCategory == 'Tout' ? "Tout" : selectedCategory,
+          title: selectedCategory == 'Tout' ? "Tout (${filteredMenus.length})" : '$selectedCategory (${filteredMenus.length})',
           itemCount: filteredMenus.length,
           crossAxisCount: 2,
           itemBuilder: (context, index) {

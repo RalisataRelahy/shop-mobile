@@ -42,7 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 5),
-                      _buildTitle(title: "Nos Combox", onTap: () {}),
+                      _buildTitle(title: "Nos Combos", onTap: () {}),
                       const ComboCarrousel(),
                       const SizedBox(height: 15),
                       _buildTitle(title: "Nos Catégories", onTap: () {}),
