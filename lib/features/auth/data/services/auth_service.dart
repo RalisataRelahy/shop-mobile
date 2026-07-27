@@ -7,7 +7,6 @@ class AuthService {
   Future<void> login(String email, String password) async {
     await supabase.auth.signInWithPassword(email: email, password: password);
   }
-
   Future<void> signUp(String email, String password, {
     required String pseudo,
     required String phone,
@@ -46,6 +45,39 @@ class AuthService {
       return AuthModels.fromJson(response);
     } catch (e) {
       throw Exception('Erreur lors de la récupération du profil: $e');
+    }
+  }
+  Future<void> deleteAccount() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      return;
+    }
+    final response = await Supabase.instance.client.functions.invoke(
+      'delete-account',
+    );
+    if (response.status == 200) {
+      await Supabase.instance.client.auth.signOut();
+      print("Compte supprimé");
+    } else {
+      print("Erreur suppression compte");
+    }
+  }
+
+  Future<void> updateProfile({
+    required String userId,
+    required String pseudo,
+    required String phone,
+  }) async {
+    try {
+      await supabase
+          .from('profiles')
+          .update({
+            'pseudo': pseudo,
+            'phone': phone,
+          })
+          .eq('id', userId);
+    } catch (e) {
+      throw Exception('Erreur lors de la mise à jour du profil: $e');
     }
   }
 }

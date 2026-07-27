@@ -12,6 +12,13 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  Future<void> _onRefresh() async {
+    // Recharge tes données ici (combos, catégories, menus...)
+    // Exemple : await context.read<HomeProvider>().fetchData();
+    await Future.delayed(const Duration(milliseconds: 800));
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
@@ -29,28 +36,34 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               child: const Header(),
             ),
-            
+
             // Reste du contenu scrollable
             Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: size.width * 0.03,
+              child: RefreshIndicator(
+                onRefresh: _onRefresh,
+                color: const Color(0xFF34A881),
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 5),
-                      _buildTitle(title: "Nos Combos", onTap: () {}),
-                      const ComboCarrousel(),
-                      const SizedBox(height: 15),
-                      _buildTitle(title: "Nos Catégories", onTap: () {}),
-                      const CategoriesList(),
-                      const SizedBox(height: 15),
-                      const MenuList(),
-                      const SizedBox(height: 30),
-                    ],
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: size.width * 0.03,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 5),
+                        _buildTitle(title: "Combos du Mois"),
+                        const ComboCarrousel(),
+                        const SizedBox(height: 15),
+                        _buildTitle(title: "Catégories"),
+                        const CategoriesList(),
+                        const SizedBox(height: 15),
+                        const MenuList(),
+                        const SizedBox(height: 30),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -61,11 +74,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildTitle({required String title, required VoidCallback onTap}) {
+  Widget _buildTitle({required String title}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
           Text(
             title,
@@ -73,16 +86,6 @@ class _HomeScreenState extends State<HomeScreen> {
               fontSize: 18,
               fontWeight: FontWeight.bold,
               color: Colors.black,
-            ),
-          ),
-          GestureDetector(
-            onTap: onTap,
-            child: const Text(
-              "Voir plus",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF34A881),
-              ),
             ),
           ),
         ],

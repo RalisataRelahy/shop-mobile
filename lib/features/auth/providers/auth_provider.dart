@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:shop_good/features/auth/data/services/auth_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -7,9 +8,19 @@ import '../data/models/auth_models.dart';
 // Provider pour le service d'authentification
 final authServiceProvider = Provider<AuthService>((ref) => AuthService());
 
+// Provider pour le mode invité
+final isGuestModeProvider = StateProvider<bool>((ref) => false);
+
 // Écoute les changements d'état d'authentification
 final authStateProvider = StreamProvider<AuthState>((ref) {
-  return Supabase.instance.client.auth.onAuthStateChange;
+  final stream = Supabase.instance.client.auth.onAuthStateChange;
+  // Si l'utilisateur se connecte, on désactive le mode invité
+  stream.listen((event) {
+    if (event.session != null) {
+      ref.read(isGuestModeProvider.notifier).state = false;
+    }
+  });
+  return stream;
 });
 
 // Récupère l'utilisateur actuel
@@ -60,5 +71,28 @@ class AuthController extends AsyncNotifier<void> {
   Future<void> signOut() async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() => _authService.signOut());
+  }
+
+  Future<void> deleteMyAccount() async{
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() => _authService.deleteAccount());
+  }
+  Future<void> updateProfile({
+    required String pseudo,
+    required String phone,
+  }) async {
+    final user = ref.read(currentUserProvider);
+    if (user == null) return;
+
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      await _authService.updateProfile(
+        userId: user.id,
+        pseudo: pseudo,
+        phone: phone,
+      );
+      // Rafraîchir les données du profil
+      ref.invalidate(userProfileProvider);
+    });
   }
 }

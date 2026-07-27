@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:shop_good/app/theme/app_colors.dart';
 import 'package:shop_good/features/auth/providers/auth_provider.dart';
+
+import '../widgets/confirm_dialog.dart';
 
 // Changement du nom pour refléter que c'est un Widget interne
 class ProfileWidget extends ConsumerWidget {
@@ -13,6 +16,11 @@ class ProfileWidget extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(userProfileProvider);
     final user = ref.watch(currentUserProvider);
+    final isGuest = ref.watch(isGuestModeProvider);
+
+    if (isGuest) {
+      return _buildGuestProfile(context, ref);
+    }
 
     // On retourne directement la gestion d'état sans Scaffold ni AppBar
     return profileAsync.when(
@@ -64,7 +72,7 @@ class ProfileWidget extends ConsumerWidget {
               _buildActionButton(
                 icon: Icons.edit_outlined,
                 label: 'Modifier le profil',
-                onTap: () {},
+                onTap: () => context.push('/edit-profile'),
               ),
               const SizedBox(height: 12),
               _buildActionButton(
@@ -74,6 +82,18 @@ class ProfileWidget extends ConsumerWidget {
                 onTap: () async {
                   await ref.read(authControllerProvider.notifier).signOut();
                 },
+              ),const SizedBox(height: 12,),
+              _buildActionButton(
+                icon: Icons.delete_forever,
+                label: 'Supprimer mon compte',
+                isDestructive: true,
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (_) =>
+                    const DeleteAccountDialog(),
+                  );
+                },
               ),
             ],
           ),
@@ -81,6 +101,54 @@ class ProfileWidget extends ConsumerWidget {
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (err, stack) => Center(child: Text('Erreur: $err')),
+    );
+  }
+
+  Widget _buildGuestProfile(BuildContext context, WidgetRef ref) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.account_circle_outlined, size: 80, color: AppColors.mediumGrey),
+            const SizedBox(height: 16),
+            Text(
+              'Mode Invité',
+              style: GoogleFonts.poppins(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Connectez-vous pour accéder à toutes les fonctionnalités et bénéficier de réductions.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: AppColors.mediumGrey,
+              ),
+            ),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  // On désactive le mode invité, le router redirigera vers /login
+                  ref.read(isGuestModeProvider.notifier).state = false;
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryGreen,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Se connecter / S\'inscrire', style: TextStyle(color: Colors.white)),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

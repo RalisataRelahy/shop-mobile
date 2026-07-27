@@ -1,30 +1,45 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shop_good/features/cart/providers/cart_provider.dart';
 import 'package:shop_good/features/combo/data/models/combo_models.dart';
+import 'package:shop_good/features/menu/views/widgets/show_pop_up_menu_items.dart';
 import 'package:shop_good/shared/widgets/badgeprice.dart';
 import 'package:shop_good/shared/widgets/text_stroke.dart';
 import 'package:shop_good/app/theme/app_colors.dart';
+import 'package:shop_good/shared/widgets/toast_notification.dart';
 
-class ComboCard extends StatelessWidget {
+class ComboCard extends ConsumerWidget {
   final ComboModels combo;
   const ComboCard({super.key, required this.combo});
 
+  void _showDetails(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => ShowPopUpMenuItems(
+        combo: combo,
+        onConfirmer: (product) {
+          ref.read(cartProvider.notifier).addItem(product);
+          ToastNotification.showSuccess(
+            context,
+            '${product.cartName} ajouté au panier !'
+          );
+        },
+      ),
+    );
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // La carte peut avoir n'importe quelle largeur selon l'écran
-        // (carrousel mobile, grille tablette/desktop...). On dérive toutes
-        // les tailles de cette largeur plutôt que d'utiliser des valeurs
-        // fixes, avec des bornes pour rester lisible dans tous les cas.
         final double cardWidth = constraints.maxWidth.isFinite
             ? constraints.maxWidth
             : 320.0;
 
         final double titleFontSize = (cardWidth * 0.062).clamp(16.0, 24.0);
         final double descFontSize = (cardWidth * 0.040).clamp(12.0, 16.0);
-        final double badgePoints = (cardWidth * 0.075).clamp(18.0, 30.0);
         final double buttonFontSize = (cardWidth * 0.042).clamp(13.0, 16.0);
         final double buttonPadding = (cardWidth * 0.028).clamp(8.0, 13.0);
         final double cornerRadius = (cardWidth * 0.06).clamp(14.0, 24.0);
@@ -35,7 +50,7 @@ class ComboCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(cornerRadius),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
+                color: Colors.black.withOpacity(0.08),
                 blurRadius: 16,
                 offset: const Offset(0, 6),
               ),
@@ -46,7 +61,7 @@ class ComboCard extends StatelessWidget {
             child: Material(
               color: theme.cardColor,
               child: InkWell(
-                onTap: () {},
+                onTap: () => _showDetails(context, ref),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -69,7 +84,7 @@ class ComboCard extends StatelessWidget {
                             },
                             errorBuilder: (context, error, stackTrace) => Container(
                               color: AppColors.backgroundOffWhite,
-                              child: Icon(Icons.image_not_supported_outlined,
+                              child: const Icon(Icons.image_not_supported_outlined,
                                   color: AppColors.mediumGrey, size: 32),
                             ),
                           ),
@@ -82,7 +97,7 @@ class ComboCard extends StatelessWidget {
                                 end: Alignment.bottomCenter,
                                 colors: [
                                   Colors.transparent,
-                                  Colors.black.withValues(alpha: 0.25),
+                                  Colors.black.withOpacity(0.25),
                                 ],
                                 stops: const [0.6, 1.0],
                               ),
@@ -93,14 +108,10 @@ class ComboCard extends StatelessWidget {
                           top: 5,
                           right: -1,
                           child: OvalPromoBadge(
-                            text: '${combo.price} Ar',
-                            badgeColor: AppColors.primaryGreen,
-                            // points: int.parse(badgePoints as String) ,
+                            text: combo.price,
+                            badgeColor: Color(0xBD066300),
                           ),
                         ),
-                        // Ancré en bas de l'image (au lieu d'un décalage
-                        // fixe en pixels) : reste toujours collé au bord
-                        // inférieur quelle que soit la hauteur de l'image.
                         Positioned(
                           left: 0,
                           right: 0,
@@ -154,7 +165,7 @@ class ComboCard extends StatelessWidget {
                             ),
                             padding: EdgeInsets.symmetric(vertical: buttonPadding),
                           ),
-                          onPressed: () {},
+                          onPressed: () => _showDetails(context, ref),
                           child: Text(
                             'Voir le combo',
                             style: TextStyle(

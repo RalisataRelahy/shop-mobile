@@ -1,8 +1,9 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:shop_good/utils/factorisingprice.dart';
 
 class OvalPromoBadge extends StatelessWidget {
-  final String text;
+  final int text;
   final TextStyle? textStyle;
   final Color badgeColor;
   final int points;
@@ -12,7 +13,7 @@ class OvalPromoBadge extends StatelessWidget {
     required this.text,
     this.textStyle,
     this.badgeColor = Colors.redAccent,
-    this.points = 24, // Un nombre plus élevé de pointes (24-32) rend l'ovale plus fluide
+    this.points = 10, // Un nombre plus élevé de pointes (24-32) rend l'ovale plus fluide
   });
 
   @override
@@ -27,7 +28,7 @@ class OvalPromoBadge extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
         alignment: Alignment.center,
         child: Text(
-          text,
+          '${factorisingPrice(text)} Ar',
           textAlign: TextAlign.center,
           style: textStyle ?? const TextStyle(
             color: Colors.white,
@@ -62,8 +63,8 @@ class _OvalStarPainter extends CustomPainter {
     final double outerRadiusY = size.height / 2;
 
     // Rayons Internes (Creux du zigzag, réglé à 85% de la taille externe)
-    final double innerRadiusX = outerRadiusX * 0.85;
-    final double innerRadiusY = outerRadiusY * 0.85;
+    final double innerRadiusX = outerRadiusX * 0.70;
+    final double innerRadiusY = outerRadiusY * 0.70;
 
     final double angleStep = (2 * pi) / (points * 2);
 

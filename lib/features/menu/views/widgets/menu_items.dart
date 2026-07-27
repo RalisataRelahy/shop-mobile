@@ -83,15 +83,11 @@ class _MenuItemCardState extends ConsumerState<MenuItemCard> {
               context: context,
               builder: (context) => ShowPopUpMenuItems(
                 menu: widget.menu,
-                onConfirmer: (variant) {
-                  final cartItem = MenuVariantCartItem(
-                    menu: widget.menu,
-                    variant: variant,
-                  );
-                  ref.read(cartProvider.notifier).addItem(cartItem);
+                onConfirmer: (product) {
+                  ref.read(cartProvider.notifier).addItem(product);
                   ToastNotification.showSuccess(
                     context,
-                    '${widget.menu.name} (${variant.name}) ajouté au panier !'
+                    '${product.cartName} ajouté au panier !'
                   );
                 },
               ),
@@ -158,9 +154,9 @@ class _MenuItemCardState extends ConsumerState<MenuItemCard> {
                       const SizedBox(height: 4),
                       
                       // Dropdown for variants
+                      // Dropdown for variants
                       if (variants.length > 1)
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
                           children: [
                             Text(
                               'Taille:',
@@ -170,34 +166,41 @@ class _MenuItemCardState extends ConsumerState<MenuItemCard> {
                               ),
                             ),
                             const SizedBox(width: 4),
-                            Container(
-                              height: 35 * scale,
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
-                              decoration: BoxDecoration(
-                                color: AppColors.lightGrey.withValues(alpha: 0.3),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: DropdownButtonHideUnderline(
-                                child: DropdownButton<MenuInvariantModels>(
-                                  value: selectedVariant,
-                                  isDense: true,
-                                  icon: const Icon(Icons.arrow_drop_down, size: 18),
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 13 * scale,
-                                    color: AppColors.darkGrey,
-                                    fontWeight: FontWeight.w500,
+                            Expanded(
+                              child: Container(
+                                height: 35 * scale,
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                decoration: BoxDecoration(
+                                  color: AppColors.lightGrey.withValues(alpha: 0.3),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<MenuInvariantModels>(
+                                    value: selectedVariant,
+                                    isDense: true,
+                                    isExpanded: true, // <-- force le dropdown à occuper l'espace dispo
+                                    icon: const Icon(Icons.arrow_drop_down, size: 18),
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 13 * scale,
+                                      color: AppColors.darkGrey,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    items: variants.map((variant) {
+                                      return DropdownMenuItem(
+                                        value: variant,
+                                        child: Text(
+                                          variant.name,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis, // <-- tronque si trop long
+                                        ),
+                                      );
+                                    }).toList(),
+                                    onChanged: (value) {
+                                      setState(() {
+                                        selectedVariant = value;
+                                      });
+                                    },
                                   ),
-                                  items: variants.map((variant) {
-                                    return DropdownMenuItem(
-                                      value: variant,
-                                      child: Text(variant.name),
-                                    );
-                                  }).toList(),
-                                  onChanged: (value) {
-                                    setState(() {
-                                      selectedVariant = value;
-                                    });
-                                  },
                                 ),
                               ),
                             ),
@@ -206,6 +209,8 @@ class _MenuItemCardState extends ConsumerState<MenuItemCard> {
                       else if (variants.isNotEmpty)
                         Text(
                           variants.first.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis, // <-- idem pour le cas variante unique
                           style: GoogleFonts.poppins(
                             fontSize: 11 * scale,
                             color: AppColors.mediumGrey,

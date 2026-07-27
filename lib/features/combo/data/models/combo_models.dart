@@ -25,12 +25,12 @@ class ComboModels implements CartProduct{
       price: json['price'] is int
           ? json['price']
           : int.tryParse(json['price']?.toString() ?? '0') ?? 0,
-      imageUrl: json['imageUrl']?.toString() ?? '',
-      isActive: json['isActive'] is bool
-          ? json['isActive']
-          : (json['isActive']?.toString().toLowerCase() == 'true' ||
-              json['isActive'] == 1 ||
-              json['isActive'] == '1'),
+      imageUrl: json['image_url']?.toString() ?? '',
+      isActive: json['is_active'] is bool
+          ? json['is_active']
+          : (json['is_active']?.toString().toLowerCase() == 'true' ||
+              json['is_active'] == 1 ||
+              json['is_active'] == '1'),
     );
   }
 
@@ -40,7 +40,7 @@ class ComboModels implements CartProduct{
       'name': name,
       'description': description,
       'price': price,
-      'imageUrl': imageUrl,
+      'image_url': imageUrl,
       'isActive': isActive,
     };
   }

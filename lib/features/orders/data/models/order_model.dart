@@ -44,7 +44,7 @@ enum OrderStatus {
 
 class OrderModel {
   final String id;
-  final String clientId;
+  final String? clientId;
   final String clientPhone;
   final String clientName;
   final OrderStatus statut;

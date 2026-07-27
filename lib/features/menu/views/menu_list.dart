@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shop_good/features/categorie/providers/categorie_providers.dart';
-import 'package:shop_good/features/dashboard/views/widgets/expandablesection.dart';
 import 'package:shop_good/features/menu/views/providers/menu_providers.dart';
 import 'package:shop_good/features/menu/views/widgets/menu_items.dart';
 
@@ -32,14 +31,35 @@ class MenuList extends ConsumerWidget {
           );
         }
 
-        return ExpandableSection(
-          title: selectedCategory == 'Tout' ? "Tout (${filteredMenus.length})" : '$selectedCategory (${filteredMenus.length})',
-          itemCount: filteredMenus.length,
-          crossAxisCount: 2,
-          itemBuilder: (context, index) {
-            final menu = filteredMenus[index];
-            return MenuItemCard(menu: menu);
-          },
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12.0),
+              child: Text(
+                selectedCategory == 'Tout' ? "Tout (${filteredMenus.length})" : '$selectedCategory (${filteredMenus.length})',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: filteredMenus.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 0.85,
+              ),
+              itemBuilder: (context, index) {
+                final menu = filteredMenus[index];
+                return MenuItemCard(menu: menu);
+              },
+            ),
+          ],
         );
       },
       error: (err, stack) => Center(

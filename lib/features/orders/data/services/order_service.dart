@@ -3,6 +3,7 @@ import 'package:shop_good/features/orders/data/models/order_model.dart';
 import 'package:shop_good/features/cart/data/models/cart_item_model.dart';
 import 'package:shop_good/features/orders/data/models/order_item_model.dart';
 
+import '../../../combo/data/models/combo_models.dart';
 import '../../../menu/data/models/menu_models.dart';
 
 class OrderService {
@@ -22,20 +23,29 @@ class OrderService {
       // 2. Créer les lignes de commande (items)
       final itemsData = items.map((item) {
         final product = item.item;
-        String productId = product.cartId;
+        String? productId;
+        String? comboId;
         String? variantId;
-        String noteValue = ""; // Par défaut vide pour respecter la contrainte NOT NULL
+        String noteValue = "";
 
-        // Si c'est un produit avec variante, on extrait les infos
         if (product is MenuVariantCartItem) {
+          // C'est un produit avec variante
           productId = product.menu.id;
           variantId = product.variant.id;
           noteValue = product.variant.name;
+        } else if (product is ComboModels) {
+          // C'est un combo
+          comboId = product.id;
+          noteValue = "Combo";
+        } else if (product is MenuModels) {
+          // C'est un produit sans variante (si applicable)
+          productId = product.id;
         }
 
         return {
           'order_id': orderId,
           'product_id': productId,
+          'combo_id': comboId,
           'variant_id': variantId,
           'quantity': item.quantity,
           'unit_price': product.cartPrice,

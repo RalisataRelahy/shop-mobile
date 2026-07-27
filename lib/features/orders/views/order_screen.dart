@@ -2,11 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shop_good/app/theme/app_colors.dart';
 import 'package:shop_good/features/orders/data/models/order_model.dart';
 import 'package:shop_good/features/orders/providers/order_provider.dart';
 import 'package:shop_good/utils/factorisingprice.dart';
 import 'package:intl/intl.dart';
+
+import '../../auth/providers/auth_provider.dart';
 
 class OrdersPage extends ConsumerWidget {
   const OrdersPage({super.key});
@@ -107,9 +110,64 @@ class OrdersPage extends ConsumerWidget {
     }
   }
 
+  Widget _buildGuestOrdersView(BuildContext context, WidgetRef ref) {
+    return Scaffold(
+      backgroundColor: offWhite,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0.5,
+        title: const Text(
+          'Mes Commandes',
+          style: TextStyle(color: darkText, fontWeight: FontWeight.bold, fontSize: 20),
+        ),
+        centerTitle: true,
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.shopping_bag_outlined, size: 80, color: lightGrey),
+              const SizedBox(height: 16),
+              const Text(
+                'Historique indisponible',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: darkText),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'En mode invité, vos commandes ne sont pas enregistrées dans un historique permanent. Connectez-vous pour suivre vos plats !',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => ref.read(isGuestModeProvider.notifier).state = false,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: greenApple,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Se connecter', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isGuest = ref.watch(isGuestModeProvider);
     final ordersAsync = ref.watch(userOrdersProvider);
+
+    if (isGuest) {
+      return _buildGuestOrdersView(context, ref);
+    }
 
     return Scaffold(
       backgroundColor: offWhite,
@@ -759,6 +817,56 @@ class _ItemsList extends ConsumerWidget {
   final double scale;
 
   const _ItemsList({required this.orderId, required this.scale});
+
+  Widget _buildGuestOrdersView(BuildContext context, WidgetRef ref) {
+    return Scaffold(
+      backgroundColor: AppColors.backgroundOffWhite,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0.5,
+        title: const Text(
+          'Mes Commandes',
+          style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold, fontSize: 20),
+        ),
+        centerTitle: true,
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.shopping_bag_outlined, size: 80, color: AppColors.lightGrey),
+              const SizedBox(height: 16),
+              const Text(
+                'Historique indisponible',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color:Colors.black54),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'En mode invité, vos commandes ne sont pas enregistrées dans un historique permanent. Connectez-vous pour suivre vos plats !',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => context.pushReplacementNamed('/login'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryGreen,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Se connecter', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

@@ -140,7 +140,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               style: GoogleFonts.poppins(
                                 fontSize: titleFontSize,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.black87,
+                                color: Colors.white,
                               ),
                             ),
                             Text(
@@ -348,7 +348,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         // Continuer en tant qu'invité
                         Center(
                           child: GestureDetector(
-                            onTap: () {},
+                            onTap: () {
+                              ref.read(isGuestModeProvider.notifier).state = true;
+                              context.go('/');
+                            },
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [

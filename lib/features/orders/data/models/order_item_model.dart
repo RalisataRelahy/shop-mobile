@@ -46,12 +46,16 @@ class OrderItemModel {
 
   int get totalPrice => unitPrice * quantity;
 
-  Map<String,dynamic> toJson(){
+  Map<String, dynamic> toJson() {
+    // Déterminer si c'est un combo ou un produit simple
+    final isCombo = comboId != null && comboId!.isNotEmpty;
+
     return {
       "id": id,
       "order_id": orderId,
-      "product_id": productId,
-      "combo_id": comboId,
+      // CORRECTION : Si c'est un combo, on n'envoie pas de product_id
+      "product_id": isCombo ? null : productId,
+      "combo_id": isCombo ? comboId : null,
       "variant_id": variantId,
       "notes": notes,
       "quantity": quantity,

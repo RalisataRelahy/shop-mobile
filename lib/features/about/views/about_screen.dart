@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:shop_good/features/profile/views/profile_screen.dart';
+import 'package:shop_good/shared/widgets/restaurant_map_widget.dart';
+import 'package:shop_good/shared/widgets/toast_notification.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class AboutScreen extends StatelessWidget {
@@ -13,12 +15,13 @@ class AboutScreen extends StatelessWidget {
   static const Color darkText = Color(0xFF2C2C2E);
 
   // Fonctions natives gratuites pour interagir avec le smartphone
-  Future<void> _openMap() async {
-    // Coordonnées GPS validées précédemment à Ankadikely
-    final Uri url = Uri.parse('https://google.com');
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    }
+  Future<void> _openMap(BuildContext context) async {
+    // // Coordonnées GPS validées précédemment à Ankadikely
+    // final Uri url = Uri.parse('https://google.com');
+    // if (await canLaunchUrl(url)) {
+    //   await launchUrl(url, mode: LaunchMode.externalApplication);
+    // }
+    ToastNotification.showError(context, "Fonctionnalite pas encore implementer");
   }
 
   Future<void> _makeCall() async {
@@ -107,7 +110,7 @@ class AboutScreen extends StatelessWidget {
                     _buildInfoRow(
                       Icons.payments_outlined,
                       "Modes de règlement acceptés",
-                      "Espèces, Mobile Money (Mvola, Orange Money, Airtel Money)",
+                      "Espèces, Mobile Money (Mvola, Orange Money, Airtel Money),Carte Bancaire",
                       scale,
                     ),
                   ],
@@ -133,7 +136,7 @@ class AboutScreen extends StatelessWidget {
                       children: [
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: _openMap,
+                            onPressed:()=> Navigator.push(context, MaterialPageRoute(builder: (context)=>RestaurantMapPage())),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: lightGrey,
                               elevation: 0,

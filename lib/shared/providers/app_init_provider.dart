@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shop_good/features/onBoardinPage/views/providers/on_boarding_page_providers.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:shop_good/features/auth/providers/auth_provider.dart';
@@ -25,7 +26,8 @@ import '../../features/menu/views/providers/menu_providers.dart';
 final appInitProvider = FutureProvider<void>((ref) async {
   final minDisplay = Future.delayed(const Duration(seconds: 2));
   final initTasks = _runInitTasks(ref);
-
+  final hasSeenOnBoarding=await OnboardingController.loadOnboardingSeen();
+  ref.read(hasSeenOnboardingProvider.notifier).state = hasSeenOnBoarding;
   await Future.wait([minDisplay, initTasks]);
 });
 

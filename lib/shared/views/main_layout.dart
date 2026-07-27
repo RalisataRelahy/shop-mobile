@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shop_good/features/about/views/about_screen.dart';
 import 'package:shop_good/features/dashboard/views/home_screen.dart';
+import 'package:shop_good/features/notifications/views/notifications_screen.dart';
+import 'package:shop_good/features/notifications/views/providers/notification_providers.dart';
 import 'package:shop_good/features/orders/views/order_screen.dart';
 import 'package:shop_good/app/theme/app_colors.dart';
 
-class MainLayout extends StatefulWidget {
+class MainLayout extends ConsumerStatefulWidget {
   const MainLayout({super.key});
 
   @override
-  State<MainLayout> createState() => _MainLayoutState();
+  ConsumerState<MainLayout> createState() => _MainLayoutState();
 }
 
 class _NavItemData {
@@ -23,13 +26,13 @@ class _NavItemData {
   });
 }
 
-class _MainLayoutState extends State<MainLayout> {
+class _MainLayoutState extends ConsumerState<MainLayout> {
   int _currentIndex = 0;
 
   final List<Widget> _screens = [
     const HomeScreen(),
-    OrdersPage(),
-    const Center(child: Text('Mes notifications', style: TextStyle(fontSize: 24))),
+    const OrdersPage(),
+    const NotificationsScreen(),
     const AboutScreen(),
   ];
 
@@ -56,11 +59,6 @@ class _MainLayoutState extends State<MainLayout> {
     ),
   ];
 
-  /// Retourne un facteur d'échelle en fonction de la largeur de l'écran.
-  /// - < 360 : petits téléphones -> on réduit un peu
-  /// - 360-600 : téléphones standards -> échelle de référence
-  /// - 600-900 : phablettes / petites tablettes -> légère augmentation
-  /// - > 900 : tablettes / desktop -> augmentation plus marquée
   double _scaleFactor(double width) {
     if (width < 360) return 0.90;
     if (width < 600) return 1.0;
@@ -70,23 +68,21 @@ class _MainLayoutState extends State<MainLayout> {
 
   @override
   Widget build(BuildContext context) {
+    final unreadCount = ref.watch(unreadNotificationsCountProvider);
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
         final scale = _scaleFactor(width);
 
-        // Tailles adaptatives
         final double iconSizeSelected = (26 * scale).clamp(22.0, 34.0);
         final double iconSizeUnselected = (24 * scale).clamp(20.0, 30.0);
         final double labelFontSizeSelected = (13 * scale).clamp(11.0, 18.0);
         final double topRadius = (24 * scale).clamp(16.0, 36.0);
-        final double navBarHeight = (64 * scale).clamp(56.0, 96.0);
+        final double navBarHeight = (70 * scale).clamp(56.0, 96.0);
         final double blurRadius = (10 * scale).clamp(8.0, 18.0);
         final double spreadRadius = (2 * scale).clamp(1.0, 4.0);
 
-        // Sur très grand écran (desktop/tablette large), on limite la largeur
-        // de la barre de navigation pour éviter qu'elle s'étire à l'infini,
-        // et on la centre.
         final bool isWideScreen = width > 900;
         final double navBarMaxWidth = isWideScreen ? 700 : double.infinity;
 
@@ -100,7 +96,7 @@ class _MainLayoutState extends State<MainLayout> {
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
+                color: Colors.black.withOpacity(0.08),
                 blurRadius: blurRadius,
                 spreadRadius: spreadRadius,
                 offset: const Offset(0, -3),
@@ -131,6 +127,7 @@ class _MainLayoutState extends State<MainLayout> {
                           isSelected: isSelected,
                           iconSize: isSelected ? iconSizeSelected : iconSizeUnselected,
                           labelFontSize: labelFontSizeSelected,
+                          badgeCount: index == 2 ? unreadCount : 0,
                           onTap: () => setState(() => _currentIndex = index),
                         ),
                       );
@@ -142,7 +139,6 @@ class _MainLayoutState extends State<MainLayout> {
           ),
         );
 
-        // Centrage + largeur max sur grands écrans
         if (isWideScreen) {
           navigationBar = Center(
             child: ConstrainedBox(
@@ -167,9 +163,6 @@ class _MainLayoutState extends State<MainLayout> {
   }
 }
 
-/// Un item de barre de navigation dont le label ne passe jamais à la ligne :
-/// s'il est trop long pour la largeur disponible, il rétrécit automatiquement
-/// (via FittedBox) au lieu de wrapper sur 2 lignes ou de déborder.
 class _NavItem extends StatelessWidget {
   final IconData icon;
   final IconData selectedIcon;
@@ -177,6 +170,7 @@ class _NavItem extends StatelessWidget {
   final bool isSelected;
   final double iconSize;
   final double labelFontSize;
+  final int badgeCount;
   final VoidCallback onTap;
 
   const _NavItem({
@@ -186,6 +180,7 @@ class _NavItem extends StatelessWidget {
     required this.isSelected,
     required this.iconSize,
     required this.labelFontSize,
+    this.badgeCount = 0,
     required this.onTap,
   });
 
@@ -204,16 +199,43 @@ class _NavItem extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                isSelected ? selectedIcon : icon,
-                color: color,
-                size: iconSize,
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(
+                    isSelected ? selectedIcon : icon,
+                    color: color,
+                    size: iconSize,
+                  ),
+                  if (badgeCount > 0)
+                    Positioned(
+                      right: -4,
+                      top: -4,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          badgeCount > 9 ? '9+' : '$badgeCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
               ),
               if (isSelected) ...[
                 const SizedBox(height: 2),
-                // FittedBox force le label à rester sur une seule ligne :
-                // s'il ne rentre pas dans la largeur allouée à cet item,
-                // il est réduit proportionnellement plutôt que de wrapper.
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Text(

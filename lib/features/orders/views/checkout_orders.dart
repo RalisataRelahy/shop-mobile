@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shop_good/app/theme/app_colors.dart';
 import 'package:shop_good/features/auth/providers/auth_provider.dart';
@@ -28,7 +27,6 @@ class _CheckoutConfigScreenState extends ConsumerState<CheckoutConfigScreen>
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
   final _noteController = TextEditingController();
-
   DeliveryMode? _mode;
   String? _paymentMethod;
   PickupTime? _pickupTime;
@@ -36,7 +34,7 @@ class _CheckoutConfigScreenState extends ConsumerState<CheckoutConfigScreen>
 
   double? _lat;
   double? _lng;
-  bool _isGettingLocation = false;
+  final bool _isGettingLocation = false;
 
   late final AnimationController _entrance;
 
@@ -51,7 +49,6 @@ class _CheckoutConfigScreenState extends ConsumerState<CheckoutConfigScreen>
     // Pré-remplissage des infos utilisateur
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final profile = ref.read(userProfileProvider).value;
-      print(profile);
       if (profile != null) {
         _nameController.text = profile.pseudo;
         _phoneController.text = profile.phone;
@@ -104,43 +101,6 @@ class _CheckoutConfigScreenState extends ConsumerState<CheckoutConfigScreen>
     return false;
   }
 
-  Future<void> _getCurrentLocation() async {
-    setState(() => _isGettingLocation = true);
-    try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        if (mounted) ToastNotification.showError(context, 'Localisation désactivée');
-        return;
-      }
-
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          if (mounted) ToastNotification.showError(context, 'Permission refusée');
-          return;
-        }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        if (mounted) ToastNotification.showError(context, 'Permission refusée définitivement');
-        return;
-      }
-
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high
-      );
-      setState(() {
-        _lat = position.latitude;
-        _lng = position.longitude;
-        _addressController.text = 'Ma position actuelle';
-      });
-    } catch (e) {
-      if (mounted) ToastNotification.showError(context, 'Erreur de localisation');
-    } finally {
-      setState(() => _isGettingLocation = false);
-    }
-  }
 
   Future<void> _submit() async {
     if (_formKey.currentState?.validate() != true || !_canSubmit) {
@@ -148,9 +108,12 @@ class _CheckoutConfigScreenState extends ConsumerState<CheckoutConfigScreen>
       return;
     }
 
-    final userId = ref.read(currentUserProvider)?.id;
-    if (userId == null) {
-      ToastNotification.showError(context, 'Vous devez être connecté');
+    final user = ref.read(currentUserProvider);
+    final isGuest = ref.read(isGuestModeProvider);
+    
+    // Si pas de user et pas en mode invité (théoriquement impossible via le router mais sécu)
+    if (user == null && !isGuest) {
+      ToastNotification.showError(context, 'Veuillez vous connecter');
       return;
     }
 
@@ -163,19 +126,28 @@ class _CheckoutConfigScreenState extends ConsumerState<CheckoutConfigScreen>
           ? '19:30'
           : _customTime?.format(context) ?? '';
     }
+    final currentMode = _mode;
+    final currentPayment = _paymentMethod;
 
+    if (currentMode == null || currentPayment == null) {
+      ToastNotification.showError(context, 'Infos de livraison ou paiement manquantes');
+      return;
+    }
+    final paymentMethod = currentPayment == "especes"
+        ? "especes"
+        : "mobile_money($currentPayment)";
     final order = OrderModel(
       id: const Uuid().v4(),
-      clientId: userId,
+      clientId: user?.id,
       clientPhone: _phoneController.text.trim(),
       clientName: _nameController.text.trim(),
       statut: OrderStatus.nonConfirmer,
-      deliveryMode: _mode!,
-      deliveryAddress: _mode == DeliveryMode.delivery ? _addressController.text.trim() : null,
+      deliveryMode: currentMode,
+      deliveryAddress: currentMode == DeliveryMode.delivery ? _addressController.text.trim() : null,
       latitude: _lat,
       longitude: _lng,
       pickupTime: timeStr,
-      paymentMethod: _paymentMethod!,
+      paymentMethod: paymentMethod,
       totalPrice: totalPrice,
       note: _noteController.text.trim().isNotEmpty ? _noteController.text.trim() : null,
       createdAt: DateTime.now(),
@@ -200,9 +172,9 @@ class _CheckoutConfigScreenState extends ConsumerState<CheckoutConfigScreen>
     }
   }
   Map<String, String> mobileMethode = {
-    "MVola": "#111*1*2*0345030370#",
-    "OrangeMoney": "#123#",
-    "AirtelMoney": "#322#",
+    "MVola": "MVola",
+    "Orange Money": "OrangeMoney",
+    "Airtel Money": "AirtelMoney",
   };
 
   @override
@@ -335,7 +307,6 @@ class _CheckoutConfigScreenState extends ConsumerState<CheckoutConfigScreen>
                             isGettingLocation: _isGettingLocation,
                             lat: _lat,
                             lng: _lng,
-                            onGetLocation: _getCurrentLocation,
                             onChanged: () => setState(() {
                               _lat = null;
                               _lng = null;
@@ -485,7 +456,6 @@ class _PaymentSelector extends StatelessWidget {
   final Map<String, String> mobileMethode;
 
   const _PaymentSelector({
-    super.key, // Utilisation des super paramètres (Flutter moderne)
     required this.selected,
     required this.onSelected,
     required this.mobileMethode,
@@ -707,7 +677,6 @@ class _DeliveryAddressSection extends StatelessWidget {
   final bool isGettingLocation;
   final double? lat;
   final double? lng;
-  final VoidCallback onGetLocation;
   final VoidCallback onChanged;
 
   const _DeliveryAddressSection({
@@ -716,7 +685,6 @@ class _DeliveryAddressSection extends StatelessWidget {
     required this.isGettingLocation,
     required this.lat,
     required this.lng,
-    required this.onGetLocation,
     required this.onChanged,
   });
 
@@ -729,18 +697,6 @@ class _DeliveryAddressSection extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const _SectionLabel(text: 'Adresse de livraison'),
-            TextButton.icon(
-              onPressed: isGettingLocation ? null : onGetLocation,
-              icon: isGettingLocation
-                  ? const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.my_location, size: 18),
-              label: const Text('Trouver moi'),
-              style: TextButton.styleFrom(foregroundColor: AppColors.primaryGreen),
-            ),
           ],
         ),
         const SizedBox(height: 8),

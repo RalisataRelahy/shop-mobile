@@ -3,17 +3,24 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shop_good/app/theme/app_colors.dart';
 import 'package:shop_good/features/menu/data/models/menu_invariant_models.dart';
 import 'package:shop_good/features/menu/data/models/menu_models.dart';
+import 'package:shop_good/shared/models/cart_items.dart';
 import 'package:shop_good/utils/factorisingprice.dart';
+import '../../../combo/data/models/combo_models.dart';
 
 class ShowPopUpMenuItems extends StatefulWidget {
-  final MenuModels menu;
-  final Function(MenuInvariantModels) onConfirmer;
+  final MenuModels? menu;
+  final ComboModels? combo;
+  final Function(CartProduct) onConfirmer;
 
   const ShowPopUpMenuItems({
     super.key,
-    required this.menu,
+    this.menu,
+    this.combo,
     required this.onConfirmer,
-  });
+  }) : assert(
+         menu != null || combo != null,
+         'Vous devez fournir un menu ou un combo',
+       );
 
   @override
   State<ShowPopUpMenuItems> createState() => _ShowPopUpMenuItemsState();
@@ -22,12 +29,27 @@ class ShowPopUpMenuItems extends StatefulWidget {
 class _ShowPopUpMenuItemsState extends State<ShowPopUpMenuItems> {
   late MenuInvariantModels selectedVariant;
 
+  bool get isCombo => widget.combo != null;
+  String get name => widget.menu?.name ?? widget.combo!.name;
+  String? get description =>
+      widget.menu?.description ?? widget.combo!.description;
+  String get imageUrl => widget.menu?.imageUrl ?? widget.combo!.imageUrl;
+  int get price => widget.menu?.cartPrice ?? widget.combo!.price;
+  List<MenuInvariantModels> get variants => widget.menu?.variants ?? [];
+  String get category => widget.menu?.category ?? 'Combo';
+
   @override
   void initState() {
     super.initState();
-    selectedVariant = widget.menu.variants.isNotEmpty
-        ? widget.menu.variants.first
-        : MenuInvariantModels(id: '0', name: 'Indisponible', price: 0);
+    if (!isCombo && variants.isNotEmpty) {
+      selectedVariant = variants.first;
+    } else {
+      selectedVariant = MenuInvariantModels(
+        id: isCombo ? widget.combo!.id : '0',
+        name: isCombo ? name : 'Indisponible',
+        price: price.toDouble(),
+      );
+    }
   }
 
   @override
@@ -36,18 +58,10 @@ class _ShowPopUpMenuItemsState extends State<ShowPopUpMenuItems> {
     final isSmallScreen = size.width < 360;
     final isTablet = size.width >= 600;
 
-    // Echelle de police en fonction de la largeur (bornée pour rester lisible)
     final scale = (size.width / 390).clamp(0.85, 1.15);
-
-    // Largeur du dialog : plein écran (avec marge) sur mobile, limitée sur tablette/desktop
     final dialogMaxWidth = isTablet ? 480.0 : size.width;
-
-    // Hauteur max du dialog pour ne jamais dépasser l'écran (évite overflow)
     final dialogMaxHeight = size.height * 0.9;
-
-    // Hauteur de l'image proportionnelle à l'écran, avec bornes min/max
     final imageHeight = (size.height * 0.26).clamp(160.0, 260.0);
-
     final horizontalPadding = isSmallScreen ? 16.0 : 24.0;
 
     return Dialog(
@@ -74,41 +88,42 @@ class _ShowPopUpMenuItemsState extends State<ShowPopUpMenuItems> {
   }
 
   Widget _buildContent(
-      BuildContext context, {
-        required double scale,
-        required double imageHeight,
-        required double horizontalPadding,
-      }) {
+    BuildContext context, {
+    required double scale,
+    required double imageHeight,
+    required double horizontalPadding,
+  }) {
     return Container(
       decoration: const BoxDecoration(
         shape: BoxShape.rectangle,
         color: Colors.white,
         borderRadius: BorderRadius.all(Radius.circular(24)),
       ),
-      // SingleChildScrollView permet d'éviter tout overflow si le contenu
-      // (description longue, variants nombreux...) dépasse la hauteur dispo
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            // Image du plat avec bouton fermer
             Stack(
               children: [
                 ClipRRect(
-                  borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(24)),
-                  child: Image.network(
-                    widget.menu.imageUrl,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(24),
+                  ),
+                  child: Container(
                     height: imageHeight,
                     width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      height: imageHeight,
-                      color: AppColors.lightGrey,
-                      child: Icon(
-                        Icons.fastfood,
-                        size: 80 * scale,
-                        color: AppColors.mediumGrey,
+                    color: AppColors.lightGrey.withOpacity(0.3),
+                    child: Image.network(
+                      imageUrl,
+                      fit: BoxFit.contain, // Affiche l'image entière sans rognage
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        height: imageHeight,
+                        color: AppColors.lightGrey,
+                        child: Icon(
+                          Icons.fastfood,
+                          size: 80 * scale,
+                          color: AppColors.mediumGrey,
+                        ),
                       ),
                     ),
                   ),
@@ -121,29 +136,30 @@ class _ShowPopUpMenuItemsState extends State<ShowPopUpMenuItems> {
                     child: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.4),
+                        color: Colors.black.withOpacity(0.4),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.close,
-                          color: Colors.white, size: 20),
+                      child: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
-
             Padding(
               padding: EdgeInsets.all(horizontalPadding),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Titre et Prix
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
                         child: Text(
-                          widget.menu.name,
+                          name,
                           style: GoogleFonts.poppins(
                             fontSize: 22 * scale,
                             fontWeight: FontWeight.bold,
@@ -162,11 +178,8 @@ class _ShowPopUpMenuItemsState extends State<ShowPopUpMenuItems> {
                       color: AppColors.primaryGreen,
                     ),
                   ),
-
                   SizedBox(height: 16 * scale),
-
-                  // Variants selection in popup
-                  if (widget.menu.variants.length > 1) ...[
+                  if (variants.length > 1) ...[
                     Text(
                       "Choisir une taille",
                       style: GoogleFonts.poppins(
@@ -179,7 +192,7 @@ class _ShowPopUpMenuItemsState extends State<ShowPopUpMenuItems> {
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: widget.menu.variants.map((variant) {
+                      children: variants.map((variant) {
                         final isSelected = selectedVariant.id == variant.id;
                         return ChoiceChip(
                           label: Text(
@@ -194,30 +207,31 @@ class _ShowPopUpMenuItemsState extends State<ShowPopUpMenuItems> {
                               });
                             }
                           },
-                          selectedColor:
-                          AppColors.primaryGreen.withValues(alpha: 0.2),
+                          selectedColor: AppColors.primaryGreen.withOpacity(0.2),
                           labelStyle: GoogleFonts.poppins(
                             color: isSelected
                                 ? AppColors.primaryGreen
                                 : Colors.black87,
-                            fontWeight:
-                            isSelected ? FontWeight.bold : FontWeight.normal,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
                           ),
                         );
                       }).toList(),
                     ),
                     SizedBox(height: 16 * scale),
                   ],
-
-                  // Catégorie
                   Row(
                     children: [
-                      Icon(Icons.local_offer_outlined,
-                          size: 16 * scale, color: AppColors.mediumGrey),
+                      Icon(
+                        Icons.local_offer_outlined,
+                        size: 16 * scale,
+                        color: AppColors.mediumGrey,
+                      ),
                       SizedBox(width: 8 * scale),
                       Expanded(
                         child: Text(
-                          widget.menu.category,
+                          category,
                           style: GoogleFonts.poppins(
                             fontSize: 14 * scale,
                             color: AppColors.mediumGrey,
@@ -229,12 +243,8 @@ class _ShowPopUpMenuItemsState extends State<ShowPopUpMenuItems> {
                       ),
                     ],
                   ),
-
                   SizedBox(height: 16 * scale),
-
-                  // Description
-                  if (widget.menu.description != null &&
-                      widget.menu.description!.isNotEmpty) ...[
+                  if (description != null && description!.isNotEmpty) ...[
                     Text(
                       "Description",
                       style: GoogleFonts.poppins(
@@ -245,7 +255,7 @@ class _ShowPopUpMenuItemsState extends State<ShowPopUpMenuItems> {
                     ),
                     SizedBox(height: 8 * scale),
                     Text(
-                      widget.menu.description!,
+                      description!,
                       style: GoogleFonts.poppins(
                         fontSize: 14 * scale,
                         color: AppColors.darkGrey,
@@ -253,16 +263,20 @@ class _ShowPopUpMenuItemsState extends State<ShowPopUpMenuItems> {
                       ),
                     ),
                   ],
-
                   SizedBox(height: 24 * scale),
-
-                  // Bouton Commander
                   SizedBox(
                     width: double.infinity,
                     height: 50 * scale,
                     child: ElevatedButton(
                       onPressed: () {
-                        widget.onConfirmer(selectedVariant);
+                        // On construit le produit final selon si c'est un combo ou un menu variant
+                        final CartProduct result = isCombo
+                            ? widget.combo!
+                            : MenuVariantCartItem(
+                                menu: widget.menu!,
+                                variant: selectedVariant,
+                              );
+                        widget.onConfirmer(result);
                         Navigator.pop(context);
                       },
                       style: ElevatedButton.styleFrom(
