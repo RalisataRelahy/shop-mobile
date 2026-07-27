@@ -25,7 +25,12 @@ void main() async {
     url: 'https://odtzvmnqfwjxishkbnob.supabase.co',
     publishableKey: 'sb_publishable_rqf-EdjotQV6RkSR9VXnsQ_Xqva3t82',
   );
-  await NotificationService().initialize();
+  
+  // Initialisation des notifications sans bloquer le démarrage
+  NotificationService().initialize().catchError((e) {
+    debugPrint('Erreur init notifications: $e');
+  });
+
   runApp(const ProviderScope(child: MyApp()));
 }
 

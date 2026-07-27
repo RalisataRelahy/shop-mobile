@@ -33,7 +33,21 @@ final userProfileProvider = FutureProvider<AuthModels?>((ref) async {
   if (user == null) return null;
   return ref.read(authServiceProvider).getProfile(user.id);
 });
-
+// Vérifie si le profil est complet
+final profileCompletedProvider = FutureProvider<bool>((ref) async {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) {
+    return false;
+  }
+  final profile = await ref
+      .read(authServiceProvider)
+      .getProfile(user.id);
+  if (profile == null) {
+    return false;
+  }
+  return profile.pseudo != null &&
+      profile.phone != null;
+});
 // Contrôleur pour gérer les actions d'authentification (login, signup) et leur état (chargement, erreur)
 final authControllerProvider = AsyncNotifierProvider<AuthController, void>(() {
   return AuthController();
@@ -50,6 +64,10 @@ class AuthController extends AsyncNotifier<void> {
   Future<void> login(String email, String password) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() => _authService.login(email, password));
+  }
+  Future<void> loginWithGoogle() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() => _authService.loginWithGoogle());
   }
 
   Future<void> signUp({

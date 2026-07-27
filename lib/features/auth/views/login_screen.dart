@@ -326,7 +326,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             Expanded(
                               child: _buildSocialButtonWithImage(
                                 label: 'Google',
-                                onTap: () {},
+                                onTap: () {ref.read(authControllerProvider.notifier).loginWithGoogle();},
                                 fontSize: (13.5 * scale).clamp(13.0, 16.0),
                                 radius: fieldRadius,
                               ),

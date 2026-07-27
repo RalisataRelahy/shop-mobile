@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:shop_good/features/auth/data/models/auth_models.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -13,11 +14,9 @@ class AuthService {
   }) async {
     // 1. Inscription dans Supabase Auth
     final res = await supabase.auth.signUp(email: email, password: password);
-    
     if (res.user == null) {
       throw Exception('Erreur lors de la création du compte');
     }
-
     // 2. Création du profil dans la table 'profiles'
     final profile = AuthModels(
       id: res.user!.id,
@@ -25,10 +24,14 @@ class AuthService {
       phone: phone,
       createdAt: DateTime.now(),
     );
-
     await supabase.from('profiles').insert(profile.toJson());
   }
-
+  Future<void> loginWithGoogle() async {
+    await Supabase.instance.client.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: 'io.supabase.shopgood://login-callback/',
+    );
+  }
   Future<void> signOut() async {
     await supabase.auth.signOut();
   }
@@ -74,10 +77,12 @@ class AuthService {
           .update({
             'pseudo': pseudo,
             'phone': phone,
+
           })
           .eq('id', userId);
     } catch (e) {
       throw Exception('Erreur lors de la mise à jour du profil: $e');
     }
   }
+
 }

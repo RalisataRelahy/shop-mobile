@@ -5,7 +5,7 @@ class CategorieServices {
   final SupabaseClient _supabase=Supabase.instance.client;
   Future<List<CategoriModel>> getAllCategories()async{
     try{
-      final response=await _supabase.from('categories').select('*').order('diplay_order');
+      final response=await _supabase.from('categories').select('*').order('display_order',ascending: true);
       return (response as List).map((json)=>CategoriModel.fromJson(json)).toList();
     }catch(e){
       throw Exception('Erreur lors de la récupération des catégories: $e');

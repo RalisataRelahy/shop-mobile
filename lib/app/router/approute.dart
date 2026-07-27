@@ -1,115 +1,208 @@
-import 'package:go_router/go_router.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'package:shop_good/features/auth/providers/auth_provider.dart';
 import 'package:shop_good/features/auth/views/login_screen.dart';
 import 'package:shop_good/features/auth/views/signup_screen.dart';
 import 'package:shop_good/features/orders/views/checkout_orders.dart';
 import 'package:shop_good/features/profile/views/edit_profile_screen.dart';
+
 import 'package:shop_good/shared/views/main_layout.dart';
 import 'package:shop_good/shared/views/splash_screen.dart';
 import 'package:shop_good/shared/providers/app_init_provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../features/onBoardinPage/views/on_boarding_page.dart';
 import '../../features/onBoardinPage/views/providers/on_boarding_page_providers.dart';
 
+import '../../features/profile/views/complete_your_profil_screen.dart';
+
+// =======================================================
+// Notifier pour forcer GoRouter à refaire redirect()
+// =======================================================
+
+class RouterNotifier extends ChangeNotifier {
+  RouterNotifier(this.ref) {
+    ref.listen(authStateProvider, (_, __) {
+      notifyListeners();
+    });
+
+    ref.listen(profileCompletedProvider, (_, __) {
+      notifyListeners();
+    });
+
+    ref.listen(appInitProvider, (_, __) {
+      notifyListeners();
+    });
+
+    ref.listen(hasSeenOnboardingProvider, (_, __) {
+      notifyListeners();
+    });
+
+    ref.listen(isGuestModeProvider, (_, __) {
+      notifyListeners();
+    });
+  }
+
+  final Ref ref;
+}
+
+// =======================================================
+// Router Provider
+// =======================================================
+
 final routerProvider = Provider<GoRouter>((ref) {
-  // Écoute les changements d'auth pour rafraîchir le router.
-  ref.watch(authStateProvider);
+  final routerNotifier = RouterNotifier(ref);
 
-  // Écoute l'état d'initialisation globale de l'app.
-  final initState = ref.watch(appInitProvider);
-
-  // Écoute le flag onboarding : dès qu'il passe à true (fin de l'onboarding),
-  // le router doit se reconstruire pour ré-évaluer le redirect.
-  ref.watch(hasSeenOnboardingProvider);
-
-  return GoRouter(
+  final router = GoRouter(
     initialLocation: '/splashscreen',
-    redirect: (context, state) {
-      final isSplash = state.matchedLocation == '/splashscreen';
-      final isOnboarding = state.matchedLocation == '/onboarding';
 
-      // 1. Tant que l'init n'est pas terminée -> on force/garde le splash.
+    refreshListenable: routerNotifier,
+
+    redirect: (context, state) {
+      final location = state.matchedLocation;
+
+      final isSplash = location == '/splashscreen';
+
+      final isOnboarding = location == '/onboarding';
+
+      final isAuthPage = location == '/login' || location == '/signup';
+
+      final initState = ref.read(appInitProvider);
+
+      final user = Supabase.instance.client.auth.currentUser;
+
+      final isGuest = ref.read(isGuestModeProvider);
+
+      final hasSeenOnboarding = ref.read(hasSeenOnboardingProvider);
+
+      final profileAsync = user == null
+          ? const AsyncData(false)
+          : ref.read(profileCompletedProvider);
+
+      final profileCompleted = profileAsync.value ?? false;
+
+      print("====================");
+      print("ROUTE : $location");
+      print("USER : ${user?.email}");
+      print("ONBOARDING : $hasSeenOnboarding");
+      print("PROFILE : $profileAsync");
+      print("====================");
+
+      // =========================
+      // 1. INITIALISATION
+      // =========================
+
       if (initState.isLoading) {
         return isSplash ? null : '/splashscreen';
       }
+      // =========================
+      // 2. ONBOARDING
+      // PRIORITE MAXIMUM
+      // =========================
 
-      // 2. Init terminée : logique auth + onboarding.
-      final user = Supabase.instance.client.auth.currentUser;
-      final isGuest = ref.read(isGuestModeProvider);
-      final hasSeenOnboarding = ref.read(hasSeenOnboardingProvider);
+      if (!hasSeenOnboarding) {
+        if (isOnboarding) {
+          return null;
+        }
 
-      final isLoggingIn = state.matchedLocation == '/login' ||
-          state.matchedLocation == '/signup';
-
-      // On quitte le splash vers la bonne destination dès que possible.
-      if (isSplash) {
-        if (!hasSeenOnboarding) return '/onboarding';
-        if (user != null) return '/';
-        if (isGuest) return '/';
-        return '/login';
-      }
-
-      // Onboarding pas encore vu -> on y force l'utilisateur en priorité,
-      // sauf s'il y est déjà.
-      if (!hasSeenOnboarding && !isOnboarding) {
         return '/onboarding';
       }
 
-      // Onboarding déjà vu mais l'utilisateur essaie d'y retourner -> on l'en sort.
-      if (hasSeenOnboarding && isOnboarding) {
-        if (user != null || isGuest) return '/';
+      // =========================
+      // 3. SPLASH FINI
+      // =========================
+
+      if (isSplash) {
+        if (user != null) {
+          if (profileAsync.isLoading) {
+            return '/splashscreen';
+          }
+
+          if (!profileCompleted) {
+            return '/complete-profile';
+          }
+
+          return '/';
+        }
+
+        if (isGuest) {
+          return '/';
+        }
+
         return '/login';
       }
 
-      // Si pas connecté ET pas invité -> vers login (sauf si on y est déjà)
+      // =========================
+      // 4. UTILISATEUR NON CONNECTE
+      // =========================
+
       if (user == null && !isGuest) {
-        return isLoggingIn ? null : '/login';
+        if (isAuthPage) {
+          return null;
+        }
+
+        return '/login';
       }
 
-      // Si connecté OU invité, et qu'on essaie d'aller sur login/signup -> vers accueil
-      if ((user != null || isGuest) && isLoggingIn) {
+      // =========================
+      // 5. PROFIL INCOMPLET
+      // =========================
+
+      if (user != null) {
+        if (profileAsync.isLoading) {
+          return null;
+        }
+
+        if (!profileCompleted && location != '/complete-profile') {
+          return '/complete-profile';
+        }
+      }
+
+      // =========================
+      // 6. CONNECTE MAIS SUR LOGIN
+      // =========================
+
+      if ((user != null || isGuest) && isAuthPage) {
         return '/';
       }
 
       return null;
     },
     routes: [
+      GoRoute(path: '/', builder: (context, state) => const MainLayout()),
       GoRoute(
-        path: '/',
-        builder: (context, state) => const MainLayout(),
+        path: '/complete-profile',
+        builder: (context, state) => const CompleteProfileScreen(),
       ),
       GoRoute(
         path: '/onboarding',
-        builder: (context, state) => OnboardingPage(
-          onFinished: () {
-            // Le controller met à jour hasSeenOnboardingProvider,
-            // ce qui déclenche automatiquement le redirect vers login/home.
-            // Pas besoin de context.go() manuel ici.
-          },
-        ),
+        builder: (context, state) => OnboardingPage(onFinished: () {}),
       ),
-      GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginScreen(),
-      ),
-      GoRoute(
-        path: '/splashscreen',
-        builder: (context, state) => const SplashScreen(),
-      ),
+      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+
       GoRoute(
         path: '/signup',
         builder: (context, state) => const SignupScreen(),
       ),
+
+      GoRoute(
+        path: '/splashscreen',
+        builder: (context, state) => const SplashScreen(),
+      ),
+
       GoRoute(
         path: '/checkout',
         builder: (context, state) => const CheckoutConfigScreen(),
       ),
+
       GoRoute(
         path: '/edit-profile',
         builder: (context, state) => const EditProfileScreen(),
       ),
     ],
   );
+  ref.onDispose(routerNotifier.dispose);
+  return router;
 });

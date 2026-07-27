@@ -75,10 +75,18 @@ class NotificationService {
   }
 
   Future<void> _saveDeviceToken() async {
-    String? token = await _fcm.getToken();
-    if (token != null) {
-      print("FCM TOKEN : $token");
-      await _updateTokenInSupabase(token);
+    try {
+      // On ajoute un timeout de 5s pour éviter de bloquer l'app au démarrage
+      String? token = await _fcm.getToken().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => null,
+      );
+      if (token != null) {
+        print("FCM TOKEN : $token");
+        await _updateTokenInSupabase(token);
+      }
+    } catch (e) {
+      print("Erreur lors de la récupération du token FCM : $e");
     }
   }
 
